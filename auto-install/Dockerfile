@@ -20,6 +20,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get upgrade -y
 
+# make it headless
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get install -y --no-install-recommends apt-utils
+
 # Copy install script
 COPY install.sh /install.sh
 RUN chmod +x /install.sh
