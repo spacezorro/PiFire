@@ -146,18 +146,25 @@ c=$(( columns / 2 ))
 r=$(( r < 20 ? 20 : r ))
 c=$(( c < 70 ? 70 : c ))
 
-# Display the welcome dialog
-whiptail --msgbox --backtitle "Welcome" --title "PiFire Automated Installer" "This installer will transform your Single Board Computer into a connected Smoker Controller.  NOTE: This installer is intended to be run on a fresh install of Raspberry Pi OS Lite 32/64-Bit Bullseye or later." ${r} ${c}
+if [[ -z "$TESTINSTALL" ]];then
+   # Display the welcome dialog
+   whiptail --msgbox --backtitle "Welcome" --title "PiFire Automated Installer" "This installer will transform your Single Board Computer into a connected Smoker Controller.  NOTE: This installer is intended to be run on a fresh install of Raspberry Pi OS Lite 32/64-Bit Bullseye or later." ${r} ${c}
 
-# Supervisor WebUI Settings
-SVISOR=$(whiptail --title "Would you like to enable the supervisor WebUI?" --radiolist "This allows you to check the status of the supervised processes via a web browser, and also allows those processes to be restarted directly from this interface. (Recommended)" 20 78 2 "ENABLE_SVISOR" "Enable the WebUI" ON "DISABLE_SVISOR" "Disable the WebUI" OFF 3>&1 1>&2 2>&3)
+   # Supervisor WebUI Settings
+   SVISOR=$(whiptail --title "Would you like to enable the supervisor WebUI?" --radiolist "This allows you to check the status of the supervised processes via a web browser, and also allows those processes to be restarted directly from this interface. (Recommended)" 20 78 2 "ENABLE_SVISOR" "Enable the WebUI" ON "DISABLE_SVISOR" "Disable the WebUI" OFF 3>&1 1>&2 2>&3)
 
-if [[ $SVISOR = "ENABLE_SVISOR" ]];then
+   if [[ $SVISOR = "ENABLE_SVISOR" ]];then
    USERNAME=$(whiptail --inputbox "Choose a username [default: user]" 8 78 user --title "Choose Username" 3>&1 1>&2 2>&3)
    PASSWORD=$(whiptail --passwordbox "Enter your password" 8 78 --title "Choose Password" 3>&1 1>&2 2>&3)
    whiptail --msgbox --backtitle "Supervisor WebUI Setup" --title "Supervisor Configured" "After this installation is completed, you should be able to access the Supervisor WebUI at http://your.ip.address.here:9001 with the username and password you have chosen." ${r} ${c}
+   else
+       echo "No Supervisor WebUI Setup." | tee -a ~/logs/pifire_install.log
+   fi
 else
-    echo "No Supervisor WebUI Setup." | tee -a ~/logs/pifire_install.log
+   echo "Automated testing of the installer"
+   SVISOR="ENABLE_SVISOR"
+   USERNAME="test"
+   PASSWORD="test123"
 fi
 
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
@@ -496,6 +503,10 @@ $SUDO service supervisor start 2>&1 | tee -a ~/logs/pifire_install.log
 
 # Installation Complete, Reboot Prompt
 echo "+ Installation completed at $(date '+%Y-%m-%d %H:%M:%S')" | tee -a ~/logs/pifire_install.log
+
+if [[ ! -z "$TESTINSTALL" ]];then
+   exit 0
+fi
 
 # Ask user if they want to reboot
 if whiptail --backtitle "Install Complete" --title "Installation Completed" --yesno "Congratulations, the installation is complete.\n\nIt's recommended to reboot your system now for all changes to take effect. On first boot, the wizard will guide you through the remaining setup steps.\n\nYou should be able to access your application by opening a browser on your PC or other device and using the IP address (or http://[hostname].local) for this device.\n\nWould you like to reboot now?" ${r} ${c}; then
