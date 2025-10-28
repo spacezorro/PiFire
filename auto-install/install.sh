@@ -119,16 +119,19 @@ else
     exit 1
 fi  
 
-if [[ " $@ " =~ " -venv " ]]; then
-    echo " + Vanilla venv install selected" | tee -a ~/logs/pifire_install.log
-    VENV_TYPE="vanilla"
-elif [[ " $@ " =~ " -uv " ]]; then
-    echo " + UV install selected" | tee -a ~/logs/pifire_install.log
-    VENV_TYPE="uv"
-else
-    VENV_TYPE="auto"
-    echo " + Auto venv type selected" | tee -a ~/logs/pifire_install.log
-fi
+VENV_TYPE="auto"
+for arg in "$@"; do
+   case "$arg" in
+      -venv) VENV_TYPE="vanilla" ;;
+      -uv) VENV_TYPE="uv" ;;
+   esac
+done
+case "$VENV_TYPE" in
+   vanilla) echo " + Vanilla venv install selected" | tee -a ~/logs/pifire_install.log ;;
+   uv) echo " + UV install selected" | tee -a ~/logs/pifire_install.log ;;
+   auto) echo " + Auto venv type install selected" | tee -a ~/logs/pifire_install.log ;;
+esac
+
 
 sleep 2
 # Find the rows and columns. Will default to 80x24 if it can not be detected.
