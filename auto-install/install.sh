@@ -279,7 +279,10 @@ if [ "$OS_BITS" = "64" ] && [ ! "$VENV_TYPE" = "vanilla" ]; then
     echo " + Setting up VENV" | tee -a ~/logs/pifire_install.log
     # Setup VENV
     cd /usr/local/bin/pifire
-    uv venv --system-site-packages
+    if ! uv venv --system-site-packages; then
+        echo " !! Failed to create puthon uv environment. Installation cannot continue." | tee -a ~/logs/pifire_install.log
+	exit 1
+    fi
 
     # Activate VENV
     source .venv/bin/activate
@@ -375,7 +378,11 @@ else
     echo " + Setting up Vanilla VENV" | tee -a ~/logs/pifire_install.log
     # Setup VENV
     cd /usr/local/bin
-    /bin/python -m venv --system-site-packages pifire
+    if ! /bin/python -m venv --system-site-packages pifire; then
+        echo " !! Failed to create python venv. Installation cannot continue." | tee -a ~/logs/pifire_install.log
+        exit 1
+    fi
+
     cd /usr/local/bin/pifire
     source bin/activate
     if ! /bin/python -c "import sys; assert sys.version_info[:2] >= (3,11)" > /dev/null 2>&1; then
