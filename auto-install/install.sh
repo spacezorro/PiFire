@@ -167,6 +167,11 @@ else
    PASSWORD="test123"
 fi
 
+# We need to enable contrib for ttf-mscorefonts-installer
+$SUDO sed -i 's/ main$/ main contrib/' /etc/apt/sources.list 2>/dev/null || \
+$SUDO sed -i 's/ main$/ main contrib/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+echo "  !! Failed to enable contrib repositories. (needed for ttf-mscorefonts-installer)" | tee -a ~/logs/pifire_install.log
+
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
 echo "**                                                                     **" | tee -a ~/logs/pifire_install.log
 echo "**      Running Apt Update... (This could take several minutes)        **" | tee -a ~/logs/pifire_install.log
