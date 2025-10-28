@@ -1,0 +1,130 @@
+name: Build pifire variants to test install
+
+on:
+  push:
+    branches:
+      - main
+      - install-script
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        os: [bullseye, bookworm, trixie]
+        target: [base, uv, venv, dev]
+        variant: [32, 64]
+
+        exclude:
+          - variant: 32
+            os: trixie
+          - variant: 32
+            target: uv
+          - variant: 64
+            os: bullseye
+          - variant: 64
+            target: venv
+
+        include:
+          # Map target to flag
+          - target: base
+            flag: ""
+          - target: uv
+            flag: -uv
+          - target: venv
+            flag: -venv
+          - target: dev
+            flag: -dev
+          # Map variant to platforms
+          - variant: 32
+            platforms: linux/arm/v7
+          - variant: 64
+            platforms: linux/arm64
+
+      fail-fast: false
+
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ hashFiles('auto-install/Dockerfile', 'auto-install/install.sh') }}
+          restore-keys: |
+            docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-
+
+      - name: Test install.sh – ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}
+        run: |
+          echo "# Testing Install: ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}" >>$GITHUB_STEP_SUMMARY
+          echo "<details><summary>Click to expand build log</summary>" >>$GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          cd auto-install
+
+          docker buildx build \
+            --load \
+            --progress=plain \
+            --platform ${{ matrix.platforms }} \
+            --build-arg OS=${{ matrix.os }} \
+            --build-arg INSTALL_FLAG="${{ matrix.flag }}" \
+            --build-arg TARGETVARIANT="${{ matrix.variant }}" \
+            --build-arg TARGETPLATFORM="${{ matrix.platforms }}" \
+            --cache-to type=local,dest=/tmp/.buildx-cache,mode=max \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            -t test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit . \
+            2>&1 |tee /tmp/docker-build.log | tee -a $GITHUB_STEP_SUMMARY
+
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >>$GITHUB_STEP_SUMMARY
+
+          echo "build_status=SUCCESS" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Report great success
+        if: steps.build.outcomes.build_status == 'SUCCESS'
+        run: |
+          echo "SUCCESS | ${{ matrix.variant }}bit | ${{ matrix.os }} | ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Report abject failure
+        if: failure()
+        run: |
+          echo "FAILED | ${{ matrix.variant }}bit | ${{ matrix.os }} | ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p failed-logs
+          cp /tmp/docker-build.log failed-logs/docker-build.log
+
+          # Try to extract internal log but it probably won't work
+          IMAGE="test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit"
+          if docker inspect "$IMAGE" > /dev/null 2>&1; then
+            CONTAINER=$(docker create "$IMAGE")
+            docker cp "$CONTAINER":/root/logs/pifire_install.log failed-logs/pifire_install.log || \
+              echo "pifire_install.log not found" >&2
+            docker rm "$CONTAINER" > /dev/null
+          else
+            echo "Image not found (build failed early)" >&2
+          fi
+
+        continue-on-error: true
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fail-pi${{ matrix.variant }}-${{ matrix.os }}-${{ matrix.target }}
+          path: failed-logs/
+          retention-days: 7
+
