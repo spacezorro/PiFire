@@ -186,7 +186,8 @@ echo "**      Running Apt Upgrade... (This could take several minutes)       **"
 echo "**                                                                     **" | tee -a ~/logs/pifire_install.log
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
 # Upgrade packages, exit if failed
-$SUDO DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+export DEBIAN_FRONTEND=noninteractive
+$SUDO apt-get upgrade -y \
     -o Dpkg::Options::=--force-confdef \
     -o Dpkg::Options::=--force-confold 2>&1 | tee -a ~/logs/pifire_install.log
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
