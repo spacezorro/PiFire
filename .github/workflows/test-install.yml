@@ -68,31 +68,28 @@ jobs:
             docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-
 
       - name: Test install.sh – ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}
+        uses: docker/build-push-action@v5
+        with:
+          context: auto-install
+          load: true
+          push: false
+          platforms: ${{ matrix.platforms }}
+          build-args: |
+            OS=${{ matrix.os }}
+            INSTALL_FLAG=${{ matrix.flag }}
+            TARGETVARIANT=${{ matrix.variant }}
+            TARGETPLATFORM=${{ matrix.platforms }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          tags: test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit
+        env:
+          ACTIONS_STEP_DEBUG: "true"
+
+      # Temp fix for https://github.com/docker/build-push-action/issues/252
+      - name: Move cache
         run: |
-          echo "# Testing Install: ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}" >>$GITHUB_STEP_SUMMARY
-          echo "<details><summary>Click to expand build log</summary>" >>$GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          cd auto-install
-
-          docker buildx build \
-            --load \
-            --progress=plain \
-            --platform ${{ matrix.platforms }} \
-            --build-arg OS=${{ matrix.os }} \
-            --build-arg INSTALL_FLAG="${{ matrix.flag }}" \
-            --build-arg TARGETVARIANT="${{ matrix.variant }}" \
-            --build-arg TARGETPLATFORM="${{ matrix.platforms }}" \
-            --cache-to type=local,dest=/tmp/.buildx-cache,mode=max \
-            --cache-from type=local,src=/tmp/.buildx-cache \
-            -t test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit . \
-            2>&1 |tee /tmp/docker-build.log | tee -a $GITHUB_STEP_SUMMARY
-
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >>$GITHUB_STEP_SUMMARY
-
-          echo "build_status=SUCCESS" >> $GITHUB_OUTPUT
-        shell: bash
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Report great success
         if: steps.build.outcomes.build_status == 'SUCCESS'
@@ -104,9 +101,6 @@ jobs:
         run: |
           echo "FAILED | ${{ matrix.variant }}bit | ${{ matrix.os }} | ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
 
-          mkdir -p failed-logs
-          cp /tmp/docker-build.log failed-logs/docker-build.log
-
           # Try to extract internal log but it probably won't work
           IMAGE="test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit"
           if docker inspect "$IMAGE" > /dev/null 2>&1; then
@@ -117,7 +111,6 @@ jobs:
           else
             echo "Image not found (build failed early)" >&2
           fi
-
         continue-on-error: true
 
       - name: Upload failure artifacts
