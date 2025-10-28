@@ -219,6 +219,14 @@ if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
     echo " + Raspberry Pi 5 detected, installing python3-rpi-lgpio" | tee -a ~/logs/pifire_install.log
     $SUDO apt install python3-rpi-lgpio -y
 fi
+# If /bin/python does not exist install python-is-python3
+if [ ! -x /bin/python ]; then
+   $SUDO apt install python-is-python3 -y 2>&1 | tee -a ~/logs/pifire_install.log
+   if [ ${PIPESTATUS[0]} -ne 0 ]; then
+       echo " !! Failed to install python-is-python3. Installation cannot continue." | tee -a ~/logs/pifire_install.log
+       exit 1
+   fi
+fi
 
 # Grab project files
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
