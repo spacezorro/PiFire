@@ -172,6 +172,7 @@ $SUDO sed -i 's/ main$/ main contrib/' /etc/apt/sources.list 2>/dev/null || \
 $SUDO sed -i 's/ main$/ main contrib/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
 echo "  !! Failed to enable contrib repositories. (needed for ttf-mscorefonts-installer)" | tee -a ~/logs/pifire_install.log
 
+
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
 echo "**                                                                     **" | tee -a ~/logs/pifire_install.log
 echo "**      Running Apt Update... (This could take several minutes)        **" | tee -a ~/logs/pifire_install.log
@@ -201,6 +202,18 @@ echo "**                                                                     **"
 echo "**      Installing Dependencies... (This could take several minutes)   **" | tee -a ~/logs/pifire_install.log
 echo "**                                                                     **" | tee -a ~/logs/pifire_install.log
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
+# If /bin/python does not exist install python3 and python-is-python3
+if [ ! -x /bin/python ]; then
+   $SUDO apt install python3 python-is-python3 -y 2>&1 | tee -a ~/logs/pifire_install.log
+   if [ ${PIPESTATUS[0]} -ne 0 ]; then
+       echo " !! Failed to install python. Installation cannot continue." | tee -a ~/logs/pifire_install.log
+       exit 1
+   fi
+   if [ ! -x /bin/python ]; then
+      # if python-is-python3 doesn't work
+      $SUDO ln -sf $(which python3) /bin/python
+   fi
+fi
 # Install dependencies, exit if failed
 $SUDO apt install \
 	python3-dev python3-pip python3-venv python3-scipy nginx git supervisor \
@@ -223,14 +236,10 @@ if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
     echo " + Raspberry Pi 5 detected, installing python3-rpi-lgpio" | tee -a ~/logs/pifire_install.log
     $SUDO apt install python3-rpi-lgpio -y
 fi
-# If /bin/python does not exist install python-is-python3
-if [ ! -x /bin/python ]; then
-   $SUDO apt install python-is-python3 -y 2>&1 | tee -a ~/logs/pifire_install.log
-   if [ ${PIPESTATUS[0]} -ne 0 ]; then
-       echo " !! Failed to install python-is-python3. Installation cannot continue." | tee -a ~/logs/pifire_install.log
-       exit 1
-   fi
-fi
+# Finalize install if there were broken packages
+export DEBIAN_FRONTEND=noninteractive
+$SUDO dpkg --configure -a 
+$SUDO apt-get -f install
 
 # Grab project files
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
