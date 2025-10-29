@@ -269,6 +269,7 @@ echo "**                                                                     **"
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
 echo ""
 echo " + Setting Up PiFire Group"
+USER=${USER:-pi}
 cd /usr/local/bin
 $SUDO groupadd pifire 
 $SUDO usermod -a -G pifire $USER 
