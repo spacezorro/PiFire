@@ -204,7 +204,7 @@ echo "**                                                                     **"
 echo "*************************************************************************" | tee -a ~/logs/pifire_install.log
 # If /bin/python does not exist install python3 and python-is-python3
 if [ ! -x /bin/python ]; then
-   $SUDO apt install python3 python-is-python3 -y 2>&1 | tee -a ~/logs/pifire_install.log
+   $SUDO apt-get -f install python3 python-is-python3 -y 2>&1 | tee -a ~/logs/pifire_install.log
    if [ ${PIPESTATUS[0]} -ne 0 ]; then
        echo " !! Failed to install python. Installation cannot continue." | tee -a ~/logs/pifire_install.log
        exit 1
@@ -215,7 +215,7 @@ if [ ! -x /bin/python ]; then
    fi
 fi
 # Install dependencies, exit if failed
-$SUDO apt install \
+$SUDO apt-get -f install \
 	python3-dev python3-pip python3-venv python3-scipy nginx git supervisor \
 	ttf-mscorefonts-installer redis-server gfortran libopenblas-dev  \
 	liblapack-dev libopenjp2-7 libglib2.0-dev libjpeg-dev zlib1g-dev \
@@ -227,14 +227,14 @@ fi
 # If OS_Version is 11 or 12, install libatlas-base-dev
 if [[ "$OS_VERSION" == "11" || "$OS_VERSION" == "12" ]]; then
     echo " + OS Version $OS_VERSION detected, installing libatlas-base-dev" | tee -a ~/logs/pifire_install.log
-    $SUDO apt install libatlas-base-dev -y 2>&1 | tee -a ~/logs/pifire_install.log
+    $SUDO apt-get -f install libatlas-base-dev -y 2>&1 | tee -a ~/logs/pifire_install.log
 else
     echo " + Skipping libatlas-base-dev installation for OS Version $OS_VERSION" | tee -a ~/logs/pifire_install.log
 fi
 # If Raspberry Pi 5, install python3-rpi-lgpio
 if grep -q "Raspberry Pi 5" /proc/device-tree/model 2>/dev/null; then
     echo " + Raspberry Pi 5 detected, installing python3-rpi-lgpio" | tee -a ~/logs/pifire_install.log
-    $SUDO apt install python3-rpi-lgpio -y
+    $SUDO apt-get -f install python3-rpi-lgpio -y
 fi
 # Finalize install if there were broken packages
 export DEBIAN_FRONTEND=noninteractive
