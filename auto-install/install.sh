@@ -294,7 +294,8 @@ if [ "$OS_BITS" = "64" ] && [ ! "$VENV_TYPE" = "vanilla" ]; then
     echo " + Setting up UV configuration (64-Bit)" | tee -a ~/logs/pifire_install.log
     # Add any 64-bit specific configurations here if needed
     echo " + Installing UV" | tee -a ~/logs/pifire_install.log
-    if ! /bin/curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" /bin/sh; then
+    CURL=$(which curl) # /bin/curl/ or /usr/bin/curl ?
+    if ! $CURL -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" /bin/sh; then
         echo " ! Failed to download or install UV. Exiting." | tee -a ~/logs/pifire_install.log
         exit 1
     fi
