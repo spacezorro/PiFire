@@ -226,7 +226,7 @@ fi
 # Install dependencies, exit if failed
 $SUDO apt-get -f install \
 	python3-dev python3-pip python3-venv python3-scipy nginx git supervisor \
-	ttf-mscorefonts-installer redis-server gfortran libopenblas-dev  \
+	ttf-mscorefonts-installer redis-server gfortran curl libopenblas-dev  \
 	liblapack-dev libopenjp2-7 libglib2.0-dev libjpeg-dev zlib1g-dev \
 	-y 2>&1 | tee -a ~/logs/pifire_install.log
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
