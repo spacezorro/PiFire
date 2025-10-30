@@ -39,6 +39,15 @@ for arg in "$@"; do
   fi
 done
 
+DEBUG="false"
+for arg in "$@"; do
+  if [[ "$arg" == "--debug" ]]; then
+    DEBUG="true"
+    echo "ENABLE DEBUG"
+    set -x
+  fi
+done
+
 # Create logs directory if it doesn't exist
 mkdir -p ~/logs
 
