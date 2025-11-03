@@ -97,7 +97,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           docker run --rm \
               --platform ${{ matrix.platforms }} \
-              raspbian:${{ matrix.os }}-${{ matrix.variant }}bit \
+              raspbian:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit \
               /bin/bash -c "/install.sh $INSTALL_FLAG" \
               2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
