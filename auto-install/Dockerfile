@@ -36,7 +36,7 @@ RUN echo "deb http://archive.raspberrypi.org/debian/ $(sh -c '. /etc/os-release;
         *-arm64) git checkout arm64 ;; \
         *-armhf) git checkout master ;; \
     esac \
-    && cat $(find stage0 stage1 stage2 -name '*-packages' -type f) | sed 's/ /\n/g' | sort > /tmp/packages.txt \
+    && cat $(find stage0 stage1 stage2 -name '*-packages' -type f) | sed 's/ /\n/g' | sort | grep -v "linux-image" > /tmp/packages.txt \
     && cat $(find stage0 stage1 stage2 -name '*-packages-nr' -type f) | sed 's/ /\n/g' | sort > /tmp/packages-nr.txt \
     && cd /tmp \
     && rm -rf /tmp/pi-gen \
