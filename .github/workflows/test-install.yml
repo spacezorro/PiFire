@@ -3,13 +3,15 @@ name: Build pifire variants to test install
 on:
   push:
     branches:
-      - main
+      - develop
       - install-script
   workflow_dispatch:
 
 jobs:
-  build:
+  test-install:
+
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
@@ -40,7 +42,7 @@ jobs:
             flag: -venv
           - target: dev
             flag: -dev
-          # Map variant to platforms
+          # Map variant to platforms (for runtime emulation)
           - variant: 32
             platforms: linux/arm/v7
           - variant: 64
@@ -63,11 +65,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('auto-install/Dockerfile', 'auto-install/install.sh', 'auto-install/requirements.txt') }}
+          key: docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ hashFiles('auto-install/Dockerfile') }}
           restore-keys: |
-            docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ matrix.target }}-
+            docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-
 
-      - name: Test install.sh – ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}
+      - name: Build Raspbian image – ${{ matrix.variant }}bit ${{ matrix.os }}
         uses: docker/build-push-action@v5
         with:
           context: auto-install
@@ -76,20 +78,32 @@ jobs:
           platforms: ${{ matrix.platforms }}
           build-args: |
             OS=${{ matrix.os }}
-            INSTALL_FLAG=${{ matrix.flag }}
             TARGETVARIANT=${{ matrix.variant }}
             TARGETPLATFORM=${{ matrix.platforms }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-          tags: test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit
-        env:
-          ACTIONS_STEP_DEBUG: "true"
+          tags: raspbian:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit
 
       # Temp fix for https://github.com/docker/build-push-action/issues/252
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Test install.sh ${{ matrix.target }} on ${{ matrix.variant }}bit ${{ matrix.os }}
+        run: |
+          echo "# Testing Install: ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Click to expand build log</summary>" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+              --platform ${{ matrix.platforms }} \
+              raspbian:${{ matrix.os }}-${{ matrix.variant }}bit \
+              /bin/bash -c "/install.sh $INSTALL_FLAG" \
+              2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+          echo "build_status=SUCCESS" >> $GITHUB_OUTPUT
 
       - name: Report great success
         if: steps.build.outcomes.build_status == 'SUCCESS'
@@ -100,24 +114,4 @@ jobs:
         if: failure()
         run: |
           echo "FAILED | ${{ matrix.variant }}bit | ${{ matrix.os }} | ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
-
-          # Try to extract internal log but it probably won't work
-          IMAGE="test-install:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit"
-          if docker inspect "$IMAGE" > /dev/null 2>&1; then
-            CONTAINER=$(docker create "$IMAGE")
-            docker cp "$CONTAINER":/root/logs/pifire_install.log failed-logs/pifire_install.log || \
-              echo "pifire_install.log not found" >&2
-            docker rm "$CONTAINER" > /dev/null
-          else
-            echo "Image not found (build failed early)" >&2
-          fi
-        continue-on-error: true
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fail-pi${{ matrix.variant }}-${{ matrix.os }}-${{ matrix.target }}
-          path: failed-logs/
-          retention-days: 7
 
