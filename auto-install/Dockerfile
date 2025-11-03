@@ -24,8 +24,16 @@ RUN apt-get update && \
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get install -y --no-install-recommends \
     apt-utils curl vim wget htop net-tools git ca-certificates gnupg
-RUN echo "deb http://archive.raspberrypi.org/debian/ $(sh -c '. /etc/os-release; echo $VERSION_CODENAME') main" > /etc/apt/sources.list.d/raspi.list \
-    && cd /tmp \ 
+# Install the keyring
+RUN CODENAME=$(lsb_release -sc) && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | \
+    gpg --dearmor -o /etc/apt/keyrings/raspberrypi-archive-keyring.gpg && \
+    chmod 644 /etc/apt/keyrings/raspberrypi-archive-keyring.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.org/debian/ $CODENAME main" > /etc/apt/sources.list.d/raspi.list && \
+    apt update
+# Install "raspbian" without the kernel
+RUN cd /tmp \ 
     && git clone https://github.com/RPi-Distro/pi-gen.git \
     && cd pi-gen \
     && case "$(sh -c '. /etc/os-release; echo $VERSION_CODENAME')-$(dpkg --print-architecture)" in \
