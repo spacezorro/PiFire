@@ -52,8 +52,5 @@ RUN chmod +x /install.sh
 
 # Run install.sh with the correct flag
 ENV TESTINSTALL=true
-ARG INSTALL_FLAG
-ENV INSTALL_FLAG=$INSTALL_FLAG
-RUN /bin/bash -c "/install.sh ${INSTALL_FLAG}"
 
 CMD ["/bin/bash"]
