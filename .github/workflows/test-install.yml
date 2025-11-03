@@ -63,9 +63,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ hashFiles('auto-install/Dockerfile', 'auto-install/install.sh') }}
+          key: docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('auto-install/Dockerfile', 'auto-install/install.sh', 'auto-install/requirements.txt') }}
           restore-keys: |
-            docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-
+            docker-layers-${{ runner.os }}-${{ matrix.platforms }}-${{ matrix.os }}-${{ matrix.target }}-
 
       - name: Test install.sh – ${{ matrix.variant }}bit ${{ matrix.os }} - ${{ matrix.target }}
         uses: docker/build-push-action@v5
