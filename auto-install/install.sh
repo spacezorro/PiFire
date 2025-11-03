@@ -314,6 +314,8 @@ if [ "$OS_BITS" = "64" ] && [ ! "$VENV_TYPE" = "vanilla" ]; then
     # Installing module dependencies
     echo " - Installing module dependencies... " | tee -a ~/logs/pifire_install.log
 
+    uv pip install --upgrade pip setuptools wheel 2>&1 | tee -a ~/logs/pifire_install.log
+
     # Install latest eventlet
     if ! uv pip install eventlet 2>&1 | tee -a ~/logs/pifire_install.log; then
         echo " !! Failed to install eventlet. Installation cannot continue." | tee -a ~/logs/pifire_install.log
@@ -409,6 +411,7 @@ else
 
     cd /usr/local/bin/pifire
     source bin/activate
+    python -m pip install --upgrade pip setuptools wheel 2>&1 | tee -a ~/logs/pifire_install.log
     if ! /bin/python -c "import sys; assert sys.version_info[:2] >= (3,11)" > /dev/null 2>&1; then
         echo " + System is running a python version lower than 3.11, installing eventlet==0.30.2." | tee -a ~/logs/pifire_install.log;
         python -m pip install "greenlet==3.1.1" "eventlet==0.30.2" 2>&1 | tee -a ~/logs/pifire_install.log
