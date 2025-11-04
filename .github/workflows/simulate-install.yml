@@ -15,6 +15,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         bits: [16, 32, 64, 65]
         debian: [bullseye, bookworm, trixie]
