@@ -22,26 +22,49 @@ jobs:
         install: [uv, venv, dev]
 
         exclude:
-          - bits: 16; debian: bookworm
-          - bits: 16; debian: trixie
-          - bits: 32; debian: trixie
-          - bits: 64; debian: bullseye
-          - bits: 65; debian: bullseye
-          - bits: 65; debian: bookworm
+          - bits: 16
+            debian: bookworm
+          - bits: 16
+            debian: trixie
+          - bits: 32
+            debian: trixie
+          - bits: 64
+            debian: bullseye
+          - bits: 65
+            debian: bullseye
+          - bits: 65
+            debian: bookworm
 
-          - bits: 16; install: uv
-          - bits: 16; install: dev
-          - bits: 32; install: uv
-          - bits: 32; install: dev
-          - bits: 65; install: venv
+          - bits: 16
+            install: uv
+          - bits: 16
+            install: dev
+          - bits: 32
+            install: uv
+          - bits: 32
+            install: dev
+          - bits: 65
+            install: venv
 
         include:
-          - bits: 16; debian: bullseye;  base_image: raspi_1_bullseye:20220121
-          - bits: 32; debian: bullseye;  base_image: raspi_2_bullseye:20230102
-          - bits: 32; debian: bookworm;  base_image: raspi_2_bookworm:20231109
-          - bits: 64; debian: bookworm;  base_image: raspi_4_bookworm:20231109
-          - bits: 64; debian: trixie;    base_image: raspbian_lite:latest
-          - bits: 65; debian: trixie;    base_image: raspbian_lite:latest
+          - bits: 16
+            debian: bullseye
+            base_image: raspi_1_bullseye:20220121
+          - bits: 32
+            debian: bullseye
+            base_image: raspi_2_bullseye:20230102
+          - bits: 32
+            debian: bookworm
+            base_image: raspi_2_bookworm:20231109
+          - bits: 64
+            debian: bookworm
+            base_image: raspi_4_bookworm:20231109
+          - bits: 64
+            debian: trixie
+            base_image: raspbian_lite:latest
+          - bits: 65
+            debian: trixie
+            base_image: raspbian_lite:latest
 
     steps:
       - name: Checkout repository
