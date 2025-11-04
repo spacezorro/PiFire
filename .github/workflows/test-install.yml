@@ -49,7 +49,7 @@ jobs:
             platforms: linux/arm64
 
       fail-fast: false
-
+      max-parallel: 1
 
     steps:
       - name: Checkout code
@@ -98,7 +98,7 @@ jobs:
           docker run --rm \
               --platform ${{ matrix.platforms }} \
               raspbian:${{ matrix.target }}-${{ matrix.os }}-${{ matrix.variant }}bit \
-              /bin/bash -x -c "/install.sh $INSTALL_FLAG" \
+              /bin/bash -c "bash -x /home/pi/install.sh $INSTALL_FLAG" \
               2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY

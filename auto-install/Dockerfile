@@ -50,9 +50,16 @@ RUN CODENAME=$(sh -c '. /etc/os-release; echo $VERSION_CODENAME') \
     && apt-get install -fy $(cat /tmp/packages.txt) \
     && rm -rf /tmp/packages-nr.txt /tmp/packages.txt
 
+# Be a pi user
+RUN useradd -m -s /bin/bash -u 1000 -G sudo,adm pi \
+    && echo 'pi ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/pi \
+    && chmod 0440 /etc/sudoers.d/pi
+USER pi
+WORKDIR /home/pi
+
 # Copy install script
-COPY install.sh /install.sh
-RUN chmod +x /install.sh
+COPY install.sh /home/pi/install.sh
+RUN chmod +x /home/pi/install.sh
 
 # Run install.sh with the correct flag
 ENV TESTINSTALL=true
