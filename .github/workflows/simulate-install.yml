@@ -1,0 +1,115 @@
+name: Install PiFire on Raspi images
+
+on:
+  push:
+    branches:
+      - develop
+      - pifireos
+
+  workflow_dispatch:
+
+jobs:
+  make-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        #bits: [16, 32, 64, 65]
+        bits: [32, 64, 65]
+        debian: [bullseye, bookworm, trixie]
+        install: [uv, venv, dev]
+
+        exclude:
+          - bits: 16; debian: bookworm
+          - bits: 16; debian: trixie
+          - bits: 32; debian: trixie
+          - bits: 64; debian: bullseye
+          - bits: 65; debian: bullseye
+          - bits: 65; debian: bookworm
+
+          - bits: 16; install: uv
+          - bits: 16; install: dev
+          - bits: 32; install: uv
+          - bits: 32; install: dev
+          - bits: 65; install: venv
+
+        include:
+          - bits: 16; debian: bullseye;  base_image: raspi_1_bullseye:20220121
+          - bits: 32; debian: bullseye;  base_image: raspi_2_bullseye:20230102
+          - bits: 32; debian: bookworm;  base_image: raspi_2_bookworm:20231109
+          - bits: 64; debian: bookworm;  base_image: raspi_4_bookworm:20231109
+          - bits: 64; debian: trixie;    base_image: raspbian_lite:latest
+          - bits: 65; debian: trixie;    base_image: raspbian_lite:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Set CPU config from bits
+        run: |
+          case "${{ matrix.bits }}" in
+            16) echo "CPU=arm1176"   ; echo "CPU_INFO=cpuinfo/raspberrypi_zero_w"; echo "ARCH=armv6l" ;;
+            32) echo "CPU=cortex-a7" ; echo "CPU_INFO=cpuinfo/raspberrypi_3b"    ; echo "ARCH=armv7l"  ;;
+            64) echo "CPU=cortex-a53"; echo "CPU_INFO=cpuinfo/raspberrypi_4b"    ; echo "ARCH=aarch64" ;;
+            65) echo "CPU=cortex-a76"; echo "CPU_INFO=cpuinfo/raspberrypi_5"     ; echo "ARCH=aarch64" ;;
+          esac >> $GITHUB_ENV
+
+      - name: Run tests & build in RPi image
+        id: rpi
+        uses: pguyot/arm-runner-action@v2.6.5
+        with:
+          image_additional_mb: 2048
+          base_image: ${{ matrix.base_image }}
+          cpu_info: ${{ env.CPU_INFO }}
+          cpu: ${{ env.CPU }}
+
+          user: pi
+          copy_artifacts_on_fail: yes
+          copy_artifact_path: /home/pi/logs/
+          output-path: logs-${{ matrix.bits }}bit-${{ matrix.debian }}-${{ matrix.install }}
+
+          bind_mount_repository: true
+          copy_repository_path: /home/pi/pifire
+
+          optimize_image: yes
+
+          commands: |
+
+            mkdir /home/pi/logs/
+            echo "Arch: ${{ matrix.arch }} | Debian: ${{ matrix.debian }} | Bits: ${{ matrix.bits }} | Install Flag: ${{ matrix.install }}" > /home/pi/logs/env.txt
+            echo "CPU: ${{ matrix.cpu }} | Model: $(grep Model /proc/cpuinfo | head -1)" >> /home/pi/logs/env.txt
+
+            set -x
+            bash /home/pi/pifire/auto_install/install.sh -${{ matrix.install }}
+            EXIT=$?
+
+            echo "Exit: $EXIT" >> /home/pi/logs/env.txt
+            exit $EXIT
+
+      - name: Compress built image
+        if: success()
+        run: |
+          xz -0 -T 0 -v "${{ steps.rpi.outputs.image }}"
+          echo "Compressed image: ${{ steps.rpi.outputs.image }}.xz"
+
+      - name: Upload built image
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpi-image-${{ matrix.bits }}bit-${{ matrix.debian }}-${{ matrix.install }}
+          path: ${{ steps.rpi.outputs.image }}.xz
+          #retention-days: 30 
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpi-logs-${{ matrix.bits }}bit-${{ matrix.debian }}-${{ matrix.install }}
+          path: |
+            logs-${{ matrix.bits }}bit-${{ matrix.debian }}-${{ matrix.install }}/**
+            /home/pi/logs/**
+
