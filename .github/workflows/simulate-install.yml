@@ -16,16 +16,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #bits: [16, 32, 64, 65]
-        bits: [32, 64, 65]
+        bits: [16, 32, 64, 65]
         debian: [bullseye, bookworm, trixie]
         install: [uv, venv, dev]
 
         exclude:
           - bits: 16
-            debian: bookworm
-          - bits: 16
-            debian: trixie
           - bits: 32
             debian: trixie
           - bits: 64
