@@ -82,7 +82,7 @@ jobs:
           cpu_info: ${{ env.CPU_INFO }}
           cpu: ${{ env.CPU }}
 
-          #user: pi
+          user: pi
           copy_artifacts_on_fail: yes
           copy_artifact_path: /home/pi/logs/
           output-path: logs-${{ matrix.bits }}bit-${{ matrix.debian }}-${{ matrix.install }}
@@ -99,7 +99,8 @@ jobs:
             echo "CPU: ${{ matrix.cpu }} | Model: $(grep Model /proc/cpuinfo | head -1)" >> /home/pi/logs/env.txt
 
             set -x
-            su - pi -c "/bin/bash /home/pi/pifire/auto_install/install.sh -${{ matrix.install }}"
+            find
+            /home/pi/pifire/auto_install/install.sh -${{ matrix.install }}
             EXIT=$?
 
             echo "Exit: $EXIT" >> /home/pi/logs/env.txt
