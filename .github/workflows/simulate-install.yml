@@ -99,8 +99,8 @@ jobs:
             echo "CPU: ${{ matrix.cpu }} | Model: $(grep Model /proc/cpuinfo | head -1)" >> /home/pi/logs/env.txt
 
             set -x
-            find
-            /home/pi/pifire/auto_install/install.sh -${{ matrix.install }}
+            cd /home/pi/pifire/repo/
+            ./auto_install/install.sh -${{ matrix.install }}
             EXIT=$?
 
             echo "Exit: $EXIT" >> /home/pi/logs/env.txt
