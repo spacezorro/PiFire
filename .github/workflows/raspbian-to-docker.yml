@@ -1,0 +1,228 @@
+name: Build pifire variants to test install
+on:
+  push:
+    branches: 
+      - develop
+      - dockerinstall
+  workflow_dispatch:
+
+jobs:
+  test-install:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        bits: [32, 64]
+        debian: [bullseye, bookworm, trixie]
+        install: [uv, venv, dev]
+
+        exclude:
+          - bits: 32
+            debian: trixie
+          - bits: 64
+            debian: bullseye
+
+        include:
+          - bits: 32
+            debian: bullseye
+            base_image: https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2023-05-03/2023-05-03-raspios-bullseye-armhf-lite.img.xz
+          - bits: 32
+            debian: bookworm
+            base_image: https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2025-05-13/2025-05-13-raspios-bookworm-armhf-lite.img.xz
+          - bits: 64
+            debian: bookworm
+            base_image: https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2025-05-13/2025-05-13-raspios-bookworm-arm64-lite.img.xz
+          - bits: 64
+            debian: trixie
+            base_image: https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2025-10-02/2025-10-01-raspios-trixie-arm64-lite.img.xz
+
+    steps:
+      - name: Set environment variables
+        run: |
+          cat >> "$GITHUB_ENV" <<'EOF'
+          CACHE_DIR=${{ github.workspace }}/.cache
+          IMG_DIR=${CACHE_DIR}/${{ matrix.debian }}/${{ matrix.bits }}
+          IMG_URL=${{ matrix.base_image }}
+          XZ_FILE=${IMG_DIR}/$(basename "${IMG_URL}")
+          CACHE_KEY=$(basename "${IMG_URL}"|cut -f1 -d.)
+          IMG_FILE=${IMG_DIR}/image.img
+          TAR_FILE=${IMG_DIR}/rootfs.tar
+          DOCKER_CACHE_DIR=${{ github.workspace }}/.docker-cache
+          DOCKER_TAG=${{ matrix.debian }}${{ matrix.bits }}:latest
+          CONTAINER_NAME=${{ matrix.debian }}${{ matrix.bits }}
+          INSTALL_FLAG=-${{ matrix.install }}
+          EOF
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache downloads and images
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
+          restore-keys: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-
+
+      - name: Cache Docker build layers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}
+          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
+          restore-keys: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-
+
+      - name: Download image if needed
+        run: |
+          set -euo pipefail
+          if [[ -f "${IMG_FILE}" ]]; then
+            echo "Using cached ${{ matrix.debian }} ${{ matrix.bits }}-bit image"
+            exit 0
+          fi
+          mkdir -p "${IMG_DIR}"
+          echo "Downloading ${IMG_URL} to ${XZ_FILE}"
+          curl -L --fail --retry 3 --retry-delay 5 -o "${XZ_FILE}.tmp" "${IMG_URL}"
+          mv "${XZ_FILE}.tmp" "${XZ_FILE}"
+          echo "Decompressing ${XZ_FILE} to ${IMG_FILE}..."
+          unxz -c "${XZ_FILE}" > "${IMG_FILE}.tmp"
+          mv "${IMG_FILE}.tmp" "${IMG_FILE}"
+          rm -f "${XZ_FILE}"
+          echo "Image ready: ${IMG_FILE}"
+
+      - name: Extract rootfs if needed
+        run: |
+          set -euo pipefail
+          if [[ -f "${TAR_FILE}" ]]; then
+            echo "Using cached ${{ matrix.debian }} ${{ matrix.bits }}-bit rootfs"
+            exit 0
+          fi
+          echo "Detecting root partition..."
+          FILE_OUTPUT=$(file -b "${IMG_FILE}")
+          OFFSET_LINE=$(echo "$FILE_OUTPUT" | grep -E 'ID=0x83.*startsector [0-9]+')
+          if [[ -z "$OFFSET_LINE" ]]; then
+            echo "Error: Root partition (0x83) not found"
+            echo "file output: $FILE_OUTPUT"
+            exit 1
+          fi
+          START_SECTOR=$(echo "$OFFSET_LINE" | grep -o 'startsector [0-9]\+' | awk '{print $2}')
+          OFFSET=$(( START_SECTOR * 512 ))
+          MNT_DIR=$(mktemp -d /tmp/rootfs.XXXXXX)
+          mount -o loop,offset="$OFFSET" "${IMG_FILE}" "$MNT_DIR"
+          echo "Extracting rootfs..."
+          tar -cpf "${TAR_FILE}.tmp" -C "$MNT_DIR" .
+          mv "${TAR_FILE}.tmp" "${TAR_FILE}"
+          umount "$MNT_DIR"
+          rmdir "$MNT_DIR"
+
+      - name: Detect architecture
+        id: arch
+        run: |
+          case "${{ matrix.bits }}" in
+            32) PLATFORM="linux/arm/v7" ;;
+            64) PLATFORM="linux/arm64" ;;
+          esac
+          echo "Detected $PLATFORM"
+          echo "platform=$PLATFORM" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          load: true
+          tags: ${{ env.DOCKER_TAG }}
+          platform: ${{ steps.arch.outputs.platform }}
+          context: ${{ env.IMG_DIR }}
+          file: -
+          dockerfile-inline: |
+            FROM scratch
+            ADD rootfs.tar /
+            CMD ["/bin/bash"]
+          cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --name ${{ env.CONTAINER_NAME }} \
+            --platform ${{ steps.arch.outputs.platform }} \
+            ${{ env.DOCKER_TAG }} \
+            tail -f /dev/null
+
+      - name: Test Install
+        id: install
+        run: |
+          echo "# Testing Install: ${{ matrix.bits }}bit ${{ matrix.debian }} - ${{ matrix.install }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "<details><summary>Click to expand install log</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          if docker exec ${{ env.CONTAINER_NAME }} \
+               /bin/bash -c "bash -x /home/pi/pifire/auto_install/install.sh ${{ env.INSTALL_FLAG }}" \
+               2>&1 | tee -a "$GITHUB_STEP_SUMMARY"; then
+            echo "Installed OK"
+            echo "success=true" >> "$GITHUB_OUTPUT"
+            EXIT=0
+          else
+            echo "Install failed"
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            EXIT=1
+          fi
+
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          exit $EXIT
+
+      - name: Check Install
+        if: steps.install.outputs.success == 'true'
+        id: check
+        run: |
+          echo "<details><summary>Click to expand upgrade log</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          case '${{ matrix.install }}' in
+            uv) ACTIVATE_CMD='source .venv/bin/activate' ;;
+            venv) ACTIVATE_CMD='source bin/activate' ;;
+          esac
+          if docker exec ${{ env.CONTAINER_NAME }} \
+               /bin/bash -c "
+                   set -x
+                   service nginx restart
+                   service supervisor restart
+                   cd /usr/local/bin/pifire
+                   ${ACTIVATE_CMD}
+                   /bin/python update.py --update
+               "; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+            EXIT=0
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            EXIT=1
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          exit ${EXIT}
+
+      - name: Summarize & cleanup
+        if: always()
+        run: |
+          {
+            echo "## Run Summary"
+            echo "| Bits | Debian | Flag | Install | Verify |"
+            echo "|------|--------|------|---------|--------|"
+            echo -n "| ${{ matrix.bits }} "
+            echo -n "| ${{ matrix.debian }} "
+            echo -n "| -${{ matrix.install }} "
+            [[ "${{ steps.install.outputs.success }}" == "true" ]] && echo -n "| PASS " || echo -n "| FAIL "
+            [[ "${{ steps.check.outputs.success }}" == "true" ]] && echo -n "| PASS " || echo -n "| FAIL "
+            echo "|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          docker stop ${{ env.CONTAINER_NAME }} || true
+          docker rm   ${{ env.CONTAINER_NAME }} || true
+
