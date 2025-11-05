@@ -46,17 +46,33 @@ jobs:
       - name: Set environment variables
         run: |
           echo "CACHE_DIR=${{ github.workspace }}/.cache" >> "$GITHUB_ENV"
-          echo "IMG_DIR=${CACHE_DIR}/${{ matrix.debian }}/${{ matrix.bits }}" >> "$GITHUB_ENV"
-          echo "IMG_URL=${{ matrix.base_image }}" >> "$GITHUB_ENV"
-          echo "XZ_FILE=${IMG_DIR}/$(basename "${IMG_URL}")" >> "$GITHUB_ENV"
-          echo "CACHE_KEY=$(basename "${IMG_URL}"|cut -f1 -d.)" >> "$GITHUB_ENV"
-          echo "IMG_FILE=${IMG_DIR}/image.img" >> "$GITHUB_ENV"
-          echo "TAR_FILE=${IMG_DIR}/rootfs.tar" >> "$GITHUB_ENV"
           echo "DOCKER_CACHE_DIR=${{ github.workspace }}/.docker-cache" >> "$GITHUB_ENV"
-          echo "DOCKER_TAG=${{ matrix.debian }}${{ matrix.bits }}:latest" >> "$GITHUB_ENV"
-          echo "CONTAINER_NAME=${{ matrix.debian }}${{ matrix.bits }}" >> "$GITHUB_ENV"
-          echo "INSTALL_FLAG=-${{ matrix.install }}" >> "$GITHUB_ENV"
-
+          DEBIAN="${{ matrix.debian }}"
+          BITS="${{ matrix.bits }}"
+          IMG_URL="${{ matrix.base_image }}"
+          INSTALL_TYPE="${{ matrix.install }}"
+          IMG_DIR="${{ github.workspace }}/.cache/${DEBIAN}/${BITS}"
+          XZ_BASENAME="$(basename "$IMG_URL")"
+          XZ_FILE="${IMG_DIR}/${XZ_BASENAME}"
+          CACHE_KEY="$(echo "$XZ_BASENAME" | cut -f1 -d.)"
+          IMG_FILE="${IMG_DIR}/image.img"
+          TAR_FILE="${IMG_DIR}/rootfs.tar"
+          DOCKER_TAG="${DEBIAN}${BITS}:latest"
+          CONTAINER_NAME="${DEBIAN}${BITS}"
+          INSTALL_FLAG="-${INSTALL_TYPE}"
+          
+          cat >> "$GITHUB_ENV" <<EOF
+          IMG_DIR=${IMG_DIR}
+          IMG_URL=${IMG_URL}
+          XZ_FILE=${XZ_FILE}
+          CACHE_KEY=${CACHE_KEY}
+          IMG_FILE=${IMG_FILE}
+          TAR_FILE=${TAR_FILE}
+          DOCKER_TAG=${DOCKER_TAG}
+          CONTAINER_NAME=${CONTAINER_NAME}
+          INSTALL_FLAG=${INSTALL_FLAG}
+          EOF
+        
       - name: Checkout code
         uses: actions/checkout@v4
 
