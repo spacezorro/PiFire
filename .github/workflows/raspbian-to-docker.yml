@@ -141,7 +141,6 @@ jobs:
           tags: ${{ env.DOCKER_TAG }}
           platform: ${{ steps.arch.outputs.platform }}
           context: ${{ env.IMG_DIR }}
-          file: -
           dockerfile-inline: |
             FROM scratch
             ADD rootfs.tar /
