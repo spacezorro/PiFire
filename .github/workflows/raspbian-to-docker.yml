@@ -131,13 +131,13 @@ jobs:
           START_SECTOR=$(echo "$OFFSET_LINE" | grep -o 'startsector [0-9]\+' | awk '{print $2}')
           OFFSET=$(( START_SECTOR * 512 ))
           MNT_DIR=$(mktemp -d /tmp/rootfs.XXXXXX)
-          LOOP_DEV=$(losetup -f --show -o "$OFFSET" "${IMG_FILE}")
-          mount "$LOOP_DEV" "$MNT_DIR"
+          LOOP_DEV=$(sudo losetup -f --show -o "$OFFSET" "${IMG_FILE}")
+          sudo mount "$LOOP_DEV" "$MNT_DIR"
           echo "Extracting rootfs..."
           tar -cpf "${TAR_FILE}.tmp" -C "$MNT_DIR" .
           mv "${TAR_FILE}.tmp" "${TAR_FILE}"
-          umount "$MNT_DIR"
-          losetup -d "$LOOP_DEV"
+          sudo umount "$MNT_DIR"
+          sudo losetup -d "$LOOP_DEV"
           rmdir "$MNT_DIR"
 
       - name: Detect architecture
