@@ -83,11 +83,10 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Cache downloads and images
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.CACHE_DIR }}
           key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
-          restore-keys: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-
 
       - name: Download image if needed
         run: |
@@ -204,7 +203,7 @@ jobs:
                su - pi -c "
                    set -x
                    cd /home/pi/
-                   /bin/bash ./auto_install/install.sh ${{ env.INSTALL_FLAG }}
+                   /bin/bash ./auto-install/install.sh ${{ env.INSTALL_FLAG }} || exit 1
                " 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"; then
             echo "Installed OK"
             echo "success=true" >> "$GITHUB_OUTPUT"
@@ -233,12 +232,12 @@ jobs:
                /bin/bash -c "
                    set -x
                    service nginx restart
-                   timeout 30 /bin/bash -c 'until service nginx status; do sleep 3; done'
+                   timeout 30 /bin/bash -c 'until service nginx status; do sleep 3; done' || exit 1
                    service supervisor restart
-                   timeout 30 /bin/bash -c 'until service supervisor status; do sleep 3; done'
-                   cd /usr/local/bin/pifire
-                   ${ACTIVATE_CMD}
-                   /bin/python update.py --update
+                   timeout 30 /bin/bash -c 'until service supervisor status; do sleep 3; done' || exit 1
+                   cd /usr/local/bin/pifire || exit 1
+                   ${ACTIVATE_CMD} || exit 1
+                   /bin/python update.py --update || exit 1
                "; then
             echo "success=true" >> "$GITHUB_OUTPUT"
             EXIT=0
