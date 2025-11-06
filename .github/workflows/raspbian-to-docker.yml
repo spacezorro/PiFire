@@ -45,7 +45,7 @@ jobs:
     steps:
       - name: Set environment variables
         run: |
-          CACHE_DIR=${{ runner.workspace }}/.cache"
+          CACHE_DIR="${{ runner.workspace }}/.cache"
           DEBIAN="${{ matrix.debian }}"
           BITS="${{ matrix.bits }}"
           IMG_URL="${{ matrix.base_image }}"
