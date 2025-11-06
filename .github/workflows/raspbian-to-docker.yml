@@ -161,8 +161,8 @@ jobs:
             FROM scratch
             ADD rootfs.tar /
             CMD ["/bin/bash"]
-          cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
+          #cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
+          #cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
 
       - name: Start container
         run: |
