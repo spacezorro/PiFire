@@ -45,12 +45,12 @@ jobs:
     steps:
       - name: Set environment variables
         run: |
-          echo "CACHE_DIR=${{ github.workspace }}/.cache" >> "$GITHUB_ENV"
+          CACHE_DIR=${{ runner.workspace }}/.cache"
           DEBIAN="${{ matrix.debian }}"
           BITS="${{ matrix.bits }}"
           IMG_URL="${{ matrix.base_image }}"
           INSTALL_TYPE="${{ matrix.install }}"
-          IMG_DIR="${{ github.workspace }}/.cache/${DEBIAN}/${BITS}"
+          IMG_DIR="${CACHE_DIR}/${DEBIAN}/${BITS}"
           XZ_BASENAME="$(basename "$IMG_URL")"
           XZ_FILE="${IMG_DIR}/${XZ_BASENAME}"
           CACHE_KEY="$(echo "$XZ_BASENAME" | cut -f1 -d.)"
@@ -61,6 +61,7 @@ jobs:
           INSTALL_FLAG="-${INSTALL_TYPE}"
           
           cat >> "$GITHUB_ENV" <<EOF
+          CACHE_DIR=${CACHE_DIR}
           IMG_DIR=${IMG_DIR}
           IMG_URL=${IMG_URL}
           XZ_FILE=${XZ_FILE}
@@ -132,12 +133,6 @@ jobs:
           sudo losetup -d "$LOOP_DEV"
           rmdir "$MNT_DIR"
 
-      - name: Save cached downloads and images
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
-          
       - name: Detect architecture
         id: arch
         run: |
@@ -168,6 +163,12 @@ jobs:
           cache-from: type=local,src=${{ env.CACHE_DIR }}
           cache-to: type=local,dest=${{ env.CACHE_DIR }}
 
+      - name: Save cached downloads and images
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
+
       - name: Start container
         run: |
           IMAGE="${{ steps.build.outputs.imageid }}"
@@ -181,6 +182,11 @@ jobs:
             ${IMAGE} \
             tail -f /dev/null
 
+      - name: Copy PiFire repo into container
+        run: |    
+          echo "Copying repo from ${{ github.workspace }} to /home/pi/"
+          docker cp "${{ github.workspace }}." "${{ env.CONTAINER_NAME }}:/home/pi/"
+
       - name: Test Install
         id: install
         run: |
@@ -189,8 +195,11 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
           if docker exec ${{ env.CONTAINER_NAME }} \
-               /bin/bash -c "bash -x /home/pi/pifire/auto_install/install.sh ${{ env.INSTALL_FLAG }}" \
-               2>&1 | tee -a "$GITHUB_STEP_SUMMARY"; then
+               su - pi -c "
+                   set -x
+                   cd /home/pi/
+                   /bin/bash ./auto_install/install.sh ${{ env.INSTALL_FLAG }}
+               " 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"; then
             echo "Installed OK"
             echo "success=true" >> "$GITHUB_OUTPUT"
             EXIT=0
@@ -218,7 +227,9 @@ jobs:
                /bin/bash -c "
                    set -x
                    service nginx restart
+                   timeout 30 /bin/bash -c 'until service nginx status; do sleep 3; done'
                    service supervisor restart
+                   timeout 30 /bin/bash -c 'until service supervisor status; do sleep 3; done'
                    cd /usr/local/bin/pifire
                    ${ACTIVATE_CMD}
                    /bin/python update.py --update
@@ -249,4 +260,3 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           docker stop ${{ env.CONTAINER_NAME }} || true
           docker rm   ${{ env.CONTAINER_NAME }} || true
-
