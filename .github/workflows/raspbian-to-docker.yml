@@ -172,7 +172,7 @@ jobs:
 
       - name: Start container
         run: |
-          IMAGE="${{ steps.build.outputs.digest }}"
+          IMAGE="${{ steps.build.outputs.imageid }}"
           docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --platform ${{ steps.arch.outputs.platform }} \
