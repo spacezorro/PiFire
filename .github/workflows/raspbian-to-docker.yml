@@ -46,7 +46,6 @@ jobs:
       - name: Set environment variables
         run: |
           echo "CACHE_DIR=${{ github.workspace }}/.cache" >> "$GITHUB_ENV"
-          echo "DOCKER_CACHE_DIR=${{ github.workspace }}/.docker-cache" >> "$GITHUB_ENV"
           DEBIAN="${{ matrix.debian }}"
           BITS="${{ matrix.bits }}"
           IMG_URL="${{ matrix.base_image }}"
@@ -86,13 +85,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.CACHE_DIR }}
-          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
-          restore-keys: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-
-
-      - name: Cache Docker build layers
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DOCKER_CACHE_DIR }}
           key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
           restore-keys: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-
 
@@ -167,8 +159,8 @@ jobs:
           platform: ${{ steps.arch.outputs.platform }}
           file: ${{ env.IMG_DIR }}/Dockerfile
           context: ${{ env.IMG_DIR }}
-          #cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
-          #cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
+          cache-from: type=local,src=${{ env.CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.CACHE_DIR }}
 
       - name: Start container
         run: |
