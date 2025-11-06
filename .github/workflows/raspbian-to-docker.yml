@@ -187,7 +187,11 @@ jobs:
           ls -l ${{ github.workspace }}
           echo "Copying repo from ${{ github.workspace }} to /home/pi/"
           docker cp "${{ github.workspace }}/." "${{ env.CONTAINER_NAME }}:/home/pi/"
-          docker exec "${{ env.CONTAINER_NAME }}" chown -R pi:pi /home/pi
+          docker exec "${{ env.CONTAINER_NAME }}" \
+            /bin/bash -c "
+              ls -l /home/pi
+              chown -R pi:pi /home/pi
+            " 
 
       - name: Test Install
         id: install
