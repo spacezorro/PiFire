@@ -150,17 +150,22 @@ jobs:
           echo "Detected $PLATFORM"
           echo "platform=$PLATFORM" >> "$GITHUB_OUTPUT"
 
+      - name: Make Dockerfile
+        run: |
+          cat > "${{ env.IMG_DIR }}/Dockerfile" <<'EOF'
+          FROM scratch
+          ADD rootfs.tar /
+          CMD ["/bin/bash"]
+          EOF
+  
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
           load: true
           tags: ${{ env.DOCKER_TAG }}
           platform: ${{ steps.arch.outputs.platform }}
+          file: ${{ env.IMG_DIR }}/Dockerfile
           context: ${{ env.IMG_DIR }}
-          dockerfile-inline: |
-            FROM scratch
-            ADD rootfs.tar /
-            CMD ["/bin/bash"]
           #cache-from: type=local,src=${{ env.DOCKER_CACHE_DIR }}
           #cache-to: type=local,dest=${{ env.DOCKER_CACHE_DIR }}
 
