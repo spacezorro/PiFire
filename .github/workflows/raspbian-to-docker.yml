@@ -132,6 +132,12 @@ jobs:
           sudo losetup -d "$LOOP_DEV"
           rmdir "$MNT_DIR"
 
+      - name: Save cached downloads and images
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: docker-build-${{ matrix.debian }}-${{ matrix.bits }}-${{ env.CACHE_KEY }}
+          
       - name: Detect architecture
         id: arch
         run: |
@@ -159,13 +165,16 @@ jobs:
           platform: ${{ steps.arch.outputs.platform }}
           file: ${{ env.IMG_DIR }}/Dockerfile
           context: ${{ env.IMG_DIR }}
-          outputs: type=docker,platform=${{ steps.arch.outputs.platform }}
           cache-from: type=local,src=${{ env.CACHE_DIR }}
           cache-to: type=local,dest=${{ env.CACHE_DIR }}
 
       - name: Start container
         run: |
-          IMAGE="${{ steps.build.outputs.imageid }}@${{ steps.arch.outputs.platform }}"
+          IMAGE="${{ steps.build.outputs.imageid }}"
+          echo "Launching container..."
+          echo "Image ID: $IMAGE"
+          echo "Platform: ${{ steps.arch.outputs.platform }}"
+          echo "Name: ${{ env.CONTAINER_NAME }}"
           docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --platform ${{ steps.arch.outputs.platform }} \
