@@ -162,7 +162,7 @@ jobs:
         with:
           load: true
           tags: ${{ env.DOCKER_TAG }}
-          platform: ${{ steps.arch.outputs.platform }}
+          platforms: ${{ steps.arch.outputs.platform }}
           file: ${{ env.IMG_DIR }}/Dockerfile
           context: ${{ env.IMG_DIR }}
           cache-from: type=local,src=${{ env.CACHE_DIR }}
