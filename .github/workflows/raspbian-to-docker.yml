@@ -159,6 +159,7 @@ jobs:
           EOF
   
       - name: Build Docker image
+        id: build
         uses: docker/build-push-action@v6
         with:
           load: true
@@ -171,11 +172,11 @@ jobs:
 
       - name: Start container
         run: |
-          docker images
+          IMAGE="${{ steps.build.outputs.digest }}"
           docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --platform ${{ steps.arch.outputs.platform }} \
-            ${{ env.DOCKER_TAG }} \
+            ${IMAGE} \
             tail -f /dev/null
 
       - name: Test Install
