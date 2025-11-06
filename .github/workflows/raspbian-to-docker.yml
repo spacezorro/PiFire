@@ -57,7 +57,7 @@ jobs:
           CACHE_KEY="$(echo "$XZ_BASENAME" | cut -f1 -d.)"
           IMG_FILE="${IMG_DIR}/image.img"
           TAR_FILE="${IMG_DIR}/rootfs.tar"
-          DOCKER_TAG="pifire/${DEBIAN}${BITS}:latest
+          DOCKER_TAG="pifire/${DEBIAN}${BITS}:latest"
           CONTAINER_NAME="${DEBIAN}${BITS}"
           INSTALL_FLAG="-${INSTALL_TYPE}"
           
