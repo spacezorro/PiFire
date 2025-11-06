@@ -159,6 +159,7 @@ jobs:
           platform: ${{ steps.arch.outputs.platform }}
           file: ${{ env.IMG_DIR }}/Dockerfile
           context: ${{ env.IMG_DIR }}
+          outputs: type=docker,platform=${{ steps.arch.outputs.platform }}
           cache-from: type=local,src=${{ env.CACHE_DIR }}
           cache-to: type=local,dest=${{ env.CACHE_DIR }}
 
